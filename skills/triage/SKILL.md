@@ -9,11 +9,11 @@ allowed-tools: Bash(node *forja.mjs* status --line) PowerShell(node *forja.mjs* 
 
 Estado: !`node "${CLAUDE_PLUGIN_ROOT}/scripts/forja.mjs" status --line`
 
-Más proceso = más tokens: el nivel más bajo que no arriesgue calidad. L0 implícito: la primera edición sin nivel lo asigna (≤3 archivos); exige triage tocar migraciones, Policies, routes, auth, middleware, CI o Docker, o pasar de 3 archivos.
+Más proceso = más tokens: el nivel más bajo que no arriesgue calidad. El orquestador no edita: toda edición la hace un subagente. L0 implícito: la primera edición sin nivel lo asigna (≤3 archivos); exige triage tocar migraciones, Policies, routes, auth, middleware, CI o Docker, o pasar de 3 archivos.
 
 | Nivel | Señales | Ruta |
 |---|---|---|
-| L0 | ≤3 archivos, sin datos/auth/pagos/rutas nuevas | editar directo; el hook Stop verifica |
+| L0 | ≤3 archivos, sin datos/auth/pagos/rutas nuevas | delegar en `fixer` (haiku); el hook verifica al terminar |
 | L1 | 1 módulo, ≤8 archivos, sin riesgo de datos/seguridad | `plan.md` ligero → aprobar → `/forja:build` → `/forja:verify` |
 | L2 | auth, pagos, permisos, datos reales, >8 archivos, requisitos poco claros | `/forja:idea` → `/forja:design` → `/forja:build` → `/forja:verify` → `/forja:ship` |
 
@@ -34,7 +34,7 @@ Más proceso = más tokens: el nivel más bajo que no arriesgue calidad. L0 impl
 | Actualizar dependencias o versión de Laravel/Inertia | L1 (L2 si es salto mayor); rama propia, guía de upgrade vía Search Docs de Boost, un salto a la vez, suite completa antes y después, `qa` si cambia el front |
 | Hotfix en producción | `/forja:debug` + L0/L1 mínimo; test de regresión, sin refactor, PR directo con `/forja:ship` |
 | Integración con API de terceros | L1 (L2 si son pagos o webhooks) + `backend` y `test`; fakes en tests, firma e idempotencia en webhooks, secretos solo por `.env`; `security` en verify |
-| Solo documentación | sin nivel: editar `docs/` o README directo |
+| Solo documentación | sin nivel: `fixer` edita `docs/` o README con lo que le dictes |
 | Spike o prototipo desechable | `level L1 spike-<slug>` en rama `spike/<slug>`; conclusiones en `docs/specs/<slug>/spike.md`; el código no se mergea, adoptarlo es otra tarea |
 
 Skills que solo escribe el usuario (el modelo no puede invocarlas; pídeselo): `/forja:init`, `/forja:infra`, `/forja:visual-ref`, `/forja:security-audit`, `/forja:approve`, `/forja:ship`, `/forja:retro`.

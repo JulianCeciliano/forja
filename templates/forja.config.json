@@ -68,7 +68,11 @@
     "designer"
   ],
   "verifyAgents": [
-    "builder"
+    "builder",
+    "fixer"
+  ],
+  "noEditAgents": [
+    "orchestrator"
   ],
   "extraReadOnlyCommands": []
 }

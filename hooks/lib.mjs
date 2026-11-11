@@ -37,7 +37,7 @@ export const DEFAULT_CONFIG = {
   neverEdit: ['.env'],
   // L0 (cambio trivial) solo puede tocar N archivos distintos antes de exigir triage.
   l0MaxFiles: 3,
-  // Verificación (Stop y SubagentStop del builder).
+  // Verificación (Stop y SubagentStop de verifyAgents).
   checkTimeoutSec: 300,
   verifyTimeoutSec: 1500, // presupuesto total de verify; el timeout de hooks.json (1800 s) debe superarlo
   maxFailLoops: 3,
@@ -54,7 +54,9 @@ export const DEFAULT_CONFIG = {
   // Subagentes que solo escriben bajo docs/ pero no están limitados en Bash.
   docsOnlyAgents: ['designer'],
   // Subagentes cuyo SubagentStop ejecuta verify.
-  verifyAgents: ['builder'],
+  verifyAgents: ['builder', 'fixer'],
+  // Agentes que no editan ningún archivo (el orquestador piensa y delega; sus subagentes sí editan).
+  noEditAgents: ['orchestrator'],
   extraReadOnlyCommands: [],
 };
 

@@ -7,7 +7,7 @@ argument-hint: "<nuevo | adopcion> <descripción del sistema, opcional>"
 
 # Init — de cero (o de un repo existente) a overview y backlog
 
-Corre en el hilo principal. `docs/` no está protegido: no necesita triage. No escribe código de la app ni una spec gigante: cada feature pasará luego por `/forja:triage`.
+Corre en el hilo principal. `docs/` no está protegido: no necesita triage. No escribe código de la app ni una spec gigante: cada feature pasará luego por `/forja:triage`. Donde dice "escribe" o "añade", el orquestador decide el contenido y lo dicta a **forja:fixer**.
 
 ## Modo nuevo
 1. Entrevista corta con AskUserQuestion (máx. 2 rondas, opciones concretas, una recomendada): dominio y problema → roles de usuario → módulos principales → decisiones de stack (auth, BD, colas, pagos, correo) → plazos o restricciones. No preguntes lo que puedas decidir con valores por defecto de Laravel.

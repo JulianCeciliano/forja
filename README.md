@@ -1,8 +1,8 @@
 # Forja
 
-Flujo de desarrollo con AI para **Claude Code**, pensado para Laravel + React (Inertia) y para gastar pocos tokens sin perder calidad. Es un plugin delgado: la sesión principal es el orquestador, los subagentes hacen trabajo aislado y **los hooks (no el modelo) imponen lo que no puede fallar**: aprobaciones humanas, tests verdes antes de terminar y guardas contra comandos destructivos.
+Flujo de desarrollo con AI para **Claude Code**, pensado para Laravel + React (Inertia) y para gastar pocos tokens sin perder calidad. Es un plugin delgado: la sesión principal es el agente `orchestrator`, que **piensa y delega pero nunca edita**; los subagentes hacen el trabajo en contexto aislado y **los hooks (no el modelo) imponen lo que no puede fallar**: aprobaciones humanas, tests verdes antes de terminar y guardas contra comandos destructivos.
 
-> Estado: 0.3.0. Cubierto por pruebas automáticas (`node --test tests/`) y `claude plugin validate`. **No** se ha probado aún en una sesión viva con modelo: ver [Primera sesión: smoke test](#primera-sesión-smoke-test). No hay cifras de ahorro medidas: ver [Experimento A/B](#experimento-ab-medir-el-ahorro-real).
+> Estado: 0.4.0. Cubierto por pruebas automáticas (`node --test tests/`) y `claude plugin validate`. **No** se ha probado aún en una sesión viva con modelo: ver [Primera sesión: smoke test](#primera-sesión-smoke-test). No hay cifras de ahorro medidas: ver [Experimento A/B](#experimento-ab-medir-el-ahorro-real).
 
 ## Instalación
 
@@ -29,6 +29,8 @@ curl -fsSL https://raw.githubusercontent.com/JulianCeciliano/forja/main/install.
 ```
 
 **Tras instalar:** reinicia Claude Code (o ejecuta `/reload-plugins`) y acepta el aviso de confianza de la carpeta; sin eso el plugin no carga. Las skills salen como `/forja:triage` y los agentes como `forja:builder`, `forja:explorer`, etc. (pestaña de plugins de `/agents`), no como agentes sueltos del proyecto. El scope `project` solo vale dentro del proyecto donde se instaló.
+
+**El hilo principal pasa a ser `forja:orchestrator`** en toda sesión donde el plugin esté activo (lo fija el `settings.json` del plugin): por eso conviene instalarlo con scope `project`, no `user`. Ver [Orquestador y subagentes](#orquestador-y-subagentes) para desactivarlo.
 
 Es idempotente: repítelo para actualizar. Qué instala siempre: la capa de archivos (`.forja/`, bloque en `CLAUDE.md`, `.claude/settings.json`), el plugin `forja` y Laravel Boost (salvo `--no-boost`).
 
@@ -60,6 +62,22 @@ Es idempotente: repítelo para actualizar. Qué instala siempre: la capa de arch
 - Mantén Boost al día con `php artisan boost:update`; si quieres automatizarlo, `--boost-update-hook` lo añade a `post-update-cmd` (no se impone).
 - **Las trampas del repo van en las reglas de proyecto de Boost** (`.ai/rules`, herramienta `record-rule`: "recuerda que el dinero va en centavos enteros"), no en `CLAUDE.md`: cada regla declara los globs a los que aplica y solo se lee al tocar esas rutas. Para un sistema existente, la skill `infer-conventions` de Boost las deduce del código. Registra las reglas con `record-rule`, no a mano (el índice se regenera al registrarlas).
 
+## Orquestador y subagentes
+
+El hilo principal es el agente `orchestrator`: entiende la tarea, clasifica, habla contigo, pide las aprobaciones y **delega toda la ejecución**. No tiene `Edit`, `Write` ni `NotebookEdit`, y el hook `gate` bloquea cualquier edición suya (`noEditAgents`). Usa el modelo de la sesión; los subagentes usan el suyo.
+
+| Trabajo | Subagente | Modelo |
+|---|---|---|
+| Orientarse en el repo | `explorer` | haiku |
+| Cambio trivial L0 (≤3 archivos) y documentos que el orquestador dicta (`spec.md`, plan de L1, `brainstorm.md`, `docs/system/`) | `fixer` | haiku |
+| Diseño técnico y `plan.md` de L2 | `designer` | sonnet |
+| Una rebanada del plan (L1 y L2), arreglo de un bug con su test | `builder` | sonnet |
+| Validar contra la spec · seguridad del diff · navegador | `validator` · `security` · `qa` | ver `agents/` |
+
+Costes de este modelo, sin medir todavía: en L1 cada rebanada arranca un `builder` en frío (antes se hacía en línea), y los documentos dictados se pagan dos veces (el orquestador redacta el contenido en el encargo y el `fixer` lo escribe). A cambio, el contexto del hilo principal no se llena de diffs ni de salidas de tests.
+
+Para volver a un hilo principal que edita: pon tu propio `"agent"` en `~/.claude/settings.json` o en `.claude/settings.json` del proyecto (los ajustes del usuario mandan sobre los del plugin), o arranca con `claude --agent <otro>`; y vacía `"noEditAgents": []` en `.forja/config.json`.
+
 ## Flujo: qué skill según el caso
 
 `/forja:triage` es un enrutador por tipo de tarea. Ante la duda, empieza ahí.
@@ -70,7 +88,7 @@ Es idempotente: repítelo para actualizar. Qué instala siempre: la capa de arch
 | Adoptar un sistema existente | `/forja:init` (mapea el sistema → `docs/system/overview.md` + backlog) |
 | Idea difusa | `/forja:brainstorm` → `/forja:triage` |
 | Bug | `/forja:debug` (reproducir, aislar, corregir con test) |
-| Feature pequeña (L0: ≤3 archivos, rutas no sensibles) | editar directo: la primera edición asigna L0 sin triage; el hook Stop verifica |
+| Feature pequeña (L0: ≤3 archivos, rutas no sensibles) | el orquestador delega en `fixer`: su primera edición asigna L0 sin triage; el hook verifica al terminar |
 | Feature mediana (L1) | `/forja:triage` → plan ligero → aprobar → `/forja:build` → `/forja:verify` |
 | Feature grande o riesgosa (L2) | `/forja:idea` → `/forja:design` → `/forja:build` → `/forja:verify` → `/forja:ship` (spec y plan aprobados) |
 | UI / rediseño con referencias | `visual-ref` (referencias de otros sitios con el navegador) + `frontend` (+ plugin `frontend-design` si lo instalaste) |
@@ -83,7 +101,7 @@ Es idempotente: repítelo para actualizar. Qué instala siempre: la capa de arch
 | Hotfix | `/forja:debug` + L0 si cabe; si toca ruta sensible, `/forja:triage` y `/forja:ship` |
 | Integración de terceros | L1/L2; Context7 para la doc vigente de la librería y skill `backend` |
 
-Skills de flujo (11): `triage`, `brainstorm`, `idea`, `design`, `build`, `verify`, `debug` (las invoca también el modelo) y `ship`, `approve`, `retro`, `init` (solo el usuario). De dominio (7): `backend`, `frontend`, `test`, `qa` (las invoca el modelo) e `infra`, `visual-ref`, `security-audit` (solo el usuario: `/forja:infra`, etc.). Las de solo usuario tienen `disable-model-invocation: true`: no cuestan tokens en el listado y ninguna otra skill ni agente puede invocarlas. Agentes (6): `explorer`, `designer`, `builder`, `validator`, `security`, `qa`.
+Skills de flujo (11): `triage`, `brainstorm`, `idea`, `design`, `build`, `verify`, `debug` (las invoca también el modelo) y `ship`, `approve`, `retro`, `init` (solo el usuario). De dominio (7): `backend`, `frontend`, `test`, `qa` (las invoca el modelo) e `infra`, `visual-ref`, `security-audit` (solo el usuario: `/forja:infra`, etc.). Las de solo usuario tienen `disable-model-invocation: true`: no cuestan tokens en el listado y ninguna otra skill ni agente puede invocarlas. Agentes (8): `orchestrator` (hilo principal) y sus subagentes `explorer`, `fixer`, `designer`, `builder`, `validator`, `security`, `qa`.
 
 | Nivel | Cuándo | Aprobaciones |
 |---|---|---|
@@ -113,19 +131,20 @@ Para proyectos Laravel conviene además escribir los flujos críticos como tests
 | Evento | Script | Función |
 |---|---|---|
 | UserPromptSubmit | `prompt-submit` | Registra `/forja:approve spec\|plan` leyendo lo que escribió el usuario; el modelo no puede aprobar |
-| PreToolUse Edit/Write/NotebookEdit | `gate` | **L0 implícito**: sin triage, la primera edición de código asigna L0 (máx. 3 archivos). Rutas sensibles (migraciones, Policies, routes, auth, middleware, CI, Docker) exigen `/forja:triage`. Editar la spec/plan tras aprobar la invalida; no se aprueba una plantilla sin rellenar; `.env`, `.forja/` (estado, config, lib, CLI) y `.claude/settings*.json` protegidos frente al agente; agentes de solo lectura y `designer` solo escriben bajo `docs/` |
+| PreToolUse Edit/Write/NotebookEdit | `gate` | **L0 implícito**: sin triage, la primera edición de código asigna L0 (máx. 3 archivos). Rutas sensibles (migraciones, Policies, routes, auth, middleware, CI, Docker) exigen `/forja:triage`. Editar la spec/plan tras aprobar la invalida; no se aprueba una plantilla sin rellenar; `.env`, `.forja/` (estado, config, lib, CLI) y `.claude/settings*.json` protegidos frente al agente; agentes de solo lectura y `designer` solo escriben bajo `docs/`; el `orchestrator` (`noEditAgents`) no edita ningún archivo |
 | PreToolUse Bash / PowerShell | `bash-guard` | Bloquea `push --force`, `reset --hard`, `clean -f`, `branch -D`, `rm -rf`/`Remove-Item -Recurse` fuera de carpetas de build, `migrate:fresh`/`reset`/`db:wipe` sin `APP_ENV=testing`, `curl\|sh`, `iwr\|iex`, `-EncodedCommand`, formateo de discos, `forja.mjs approve` y escrituras a `state.json`, en Bash **y PowerShell**; los subagentes de solo lectura (`readOnlyAgents`: validator, security, explorer, qa) solo ejecutan comandos de lectura/test (git, ls/cat/grep/rg, `artisan test`, pint `--test`, tsc, vitest, playwright, equivalentes de PowerShell) |
 | PostToolUse Edit/Write | `format` | **Inerte** salvo `"formatMode": "edit"` en `.forja/config.json` (formatea tras cada edición; obliga a releer archivos, por eso no es el defecto) |
 | Stop | `verify`, `metrics` | pint `--test` + tests + tsc + vitest solo si cambió código (sin commitear o commiteado desde la última verificación que pasó, aunque el árbol esté limpio); con `formatMode: "stop"` (defecto) formatea antes los archivos cambiados con pint/prettier; ≤40 líneas de log; corta bucles tras `maxFailLoops` (3) intentos; si el mismo código ya falló no repite el bloqueo en un turno nuevo |
-| SubagentStop | `verify`, `metrics` | `verify` corre también al terminar los agentes de `verifyAgents` (por defecto `builder`); `metrics` registra tokens reales del transcript en `.forja/metrics.jsonl` |
+| SubagentStop | `verify`, `metrics` | `verify` corre también al terminar los agentes de `verifyAgents` (por defecto `builder` y `fixer`); `metrics` registra tokens reales del transcript en `.forja/metrics.jsonl` |
 | SessionStart | `session-start` | 1–2 líneas de estado; L0 no se hereda entre sesiones; funciona en worktrees |
 
-Los hooks de Edit/Write no vigilan la shell: un comando de Bash o PowerShell que escriba código (`sed -i`, `>`, `tee`) **no pasa por la puerta de aprobaciones** (ver [Modelo de confianza](#modelo-de-confianza-límites-honestos)). La tabla refleja el contrato de 0.3.0; los detalles finos viven en `hooks/` y se comprueban con `tests/hooks.test.mjs`.
+Los hooks de Edit/Write no vigilan la shell: un comando de Bash o PowerShell que escriba código (`sed -i`, `>`, `tee`) **no pasa por la puerta de aprobaciones** (ver [Modelo de confianza](#modelo-de-confianza-límites-honestos)). La tabla refleja el contrato de 0.4.0; los detalles finos viven en `hooks/` y se comprueban con `tests/hooks.test.mjs`.
 
 ## Diseño para gastar pocos tokens
 
-- **Lo que se carga siempre** es pequeño: el bloque de `CLAUDE.md` (~21 líneas) y las descripciones de skills/agentes. Mídelo con `claude plugin details forja` (línea `Always-on` y filas por componente); no hay cifras fijadas aquí porque cambian con cada versión.
-- Triage enruta por tipo de tarea: lo trivial no paga spec, plan ni subagentes.
+- **Lo que se carga siempre** es pequeño: el bloque de `CLAUDE.md` (~23 líneas) y las descripciones de skills/agentes. Mídelo con `claude plugin details forja` (línea `Always-on` y filas por componente); no hay cifras fijadas aquí porque cambian con cada versión.
+- Triage enruta por tipo de tarea: lo trivial no paga spec ni plan, solo un `fixer` en haiku.
+- El orquestador decide con resúmenes de ≤10 líneas: los diffs, logs y snapshots se quedan en el contexto del subagente.
 - Subagentes solo donde rinden (exploración, validación, seguridad, QA en contexto aislado); respuestas ≤10 líneas, el detalle va a archivos en `docs/specs/<feature>/`.
 - `verify` cachea una huella del código: sin cambios no repite checks.
 - Una skill dueña por fase: por eso Superpowers es opt-in.
@@ -135,11 +154,11 @@ Los hooks de Edit/Write no vigilan la shell: un comando de Bash o PowerShell que
 
 ## Modelo de confianza (límites honestos)
 
-Los hooks son **guardarraíles contra la deriva del modelo, no una frontera de seguridad** contra un agente hostil: `bash-guard` es heurístico (regex) y el nivel L0 lo fija el propio modelo (acotado a 3 archivos y a rutas no sensibles). Para secretos y estado usa además las reglas `deny` instaladas. Límites conocidos: la puerta de aprobaciones solo vigila Edit/Write/NotebookEdit, no la shell (un `sed -i` o `> archivo` desde Bash/PowerShell escribe código sin aprobaciones; `bash-guard` solo cierra las escrituras a `state.json`); el agente `qa` puede ejecutar `playwright-cli` completo (incluida evaluación de scripts de página y capturas a cualquier ruta) porque lo necesita para probar; y un worktree enlazado sin `vendor/`/`node_modules/` verifica en vacío. Las aprobaciones solo se registran desde el texto del usuario o desde `! node .forja/forja.mjs approve ...` en tu terminal. Los plugins de terceros (Superpowers, Caveman, MCP) ejecutan código o instrucciones con tus permisos: revísalos antes de activarlos.
+Los hooks son **guardarraíles contra la deriva del modelo, no una frontera de seguridad** contra un agente hostil: `bash-guard` es heurístico (regex) y el nivel L0 lo fija el propio modelo (acotado a 3 archivos y a rutas no sensibles). Para secretos y estado usa además las reglas `deny` instaladas. Límites conocidos: la puerta de aprobaciones solo vigila Edit/Write/NotebookEdit, no la shell (un `sed -i` o `> archivo` desde Bash/PowerShell escribe código sin aprobaciones, y por la misma vía el orquestador podría escribir pese a no tener Edit/Write: necesita la shell para git y el CLI, así que ahí la regla es solo de prompt; `bash-guard` solo cierra las escrituras a `state.json`); el agente `qa` puede ejecutar `playwright-cli` completo (incluida evaluación de scripts de página y capturas a cualquier ruta) porque lo necesita para probar; y un worktree enlazado sin `vendor/`/`node_modules/` verifica en vacío. Las aprobaciones solo se registran desde el texto del usuario o desde `! node .forja/forja.mjs approve ...` en tu terminal. Los plugins de terceros (Superpowers, Caveman, MCP) ejecutan código o instrucciones con tus permisos: revísalos antes de activarlos.
 
 ## Configuración
 
-`.forja/config.json` (plantilla `templates/forja.config.json`; todo lo que falte usa el defecto de `hooks/lib.mjs`): `enforceTriage`, `protectedPaths`, `protectedExclude`, `sensitivePaths`, `neverEdit`, `l0MaxFiles`, `checks` (`null` = autodetección; o lista `{name, cmd, when}` / `{name, cmd, args, when}`), `checkTimeoutSec`, `verifyTimeoutSec` (presupuesto total de verify; el timeout de 1800 s de `hooks.json` debe superarlo), `maxFailLoops`, `outputMaxLines`, `outputMaxChars`, `formatMode` (`stop` | `edit` | `off`), `readOnlyAgents` (validator, security, explorer, qa), `docsOnlyAgents` (designer), `verifyAgents` (builder), `extraReadOnlyCommands`. Patrones de ruta: terminan en `/` = prefijo, con `*` = glob sobre la ruta entera, si no = archivo exacto. **Al reinstalar solo se añaden claves que faltan; una clave que ya tenías se conserva tal cual, incluidas las listas** (un `protectedPaths` antiguo no recibe las rutas nuevas de los defectos: bórralo de `.forja/config.json` y reinstala para adoptarlos). Los modelos de cada agente están en `agents/*.md`: ajústalos según `/usage`. `node .forja/forja.mjs status --line` imprime el estado en una línea. Comandos del CLI: `status [--line]`, `level <L0|L1|L2> [slug] [--force]`, `approve <spec|plan>`, `done`, `metrics`. Las skills inyectan el estado con el CLI del plugin (`${CLAUDE_PLUGIN_ROOT}/scripts/forja.mjs`), que no falla aunque `.forja/` no exista.
+`.forja/config.json` (plantilla `templates/forja.config.json`; todo lo que falte usa el defecto de `hooks/lib.mjs`): `enforceTriage`, `protectedPaths`, `protectedExclude`, `sensitivePaths`, `neverEdit`, `l0MaxFiles`, `checks` (`null` = autodetección; o lista `{name, cmd, when}` / `{name, cmd, args, when}`), `checkTimeoutSec`, `verifyTimeoutSec` (presupuesto total de verify; el timeout de 1800 s de `hooks.json` debe superarlo), `maxFailLoops`, `outputMaxLines`, `outputMaxChars`, `formatMode` (`stop` | `edit` | `off`), `readOnlyAgents` (validator, security, explorer, qa), `docsOnlyAgents` (designer), `verifyAgents` (builder, fixer), `noEditAgents` (orchestrator), `extraReadOnlyCommands`. Patrones de ruta: terminan en `/` = prefijo, con `*` = glob sobre la ruta entera, si no = archivo exacto. **Al reinstalar solo se añaden claves que faltan; una clave que ya tenías se conserva tal cual, incluidas las listas** (un `protectedPaths` antiguo no recibe las rutas nuevas de los defectos: bórralo de `.forja/config.json` y reinstala para adoptarlos). Los modelos de cada agente están en `agents/*.md`: ajústalos según `/usage`. `node .forja/forja.mjs status --line` imprime el estado en una línea. Comandos del CLI: `status [--line]`, `level <L0|L1|L2> [slug] [--force]`, `approve <spec|plan>`, `done`, `metrics`. Las skills inyectan el estado con el CLI del plugin (`${CLAUDE_PLUGIN_ROOT}/scripts/forja.mjs`), que no falla aunque `.forja/` no exista.
 
 ## Primera sesión: smoke test
 
@@ -150,12 +169,13 @@ Estos puntos dependen del comportamiento de Claude Code en vivo y **no se han ve
 3. `/forja:triage <feature grande>` → L2 → `/forja:idea` → `/forja:approve spec`: debe aparecer "spec aprobada". **Si no aparece**, el campo `prompt` del hook `UserPromptSubmit` no llegó: usa `! node .forja/forja.mjs approve spec`. Prueba también aprobar una plantilla sin rellenar: debe rechazarse.
 4. **PowerShell bloqueado:** pide a Claude que ejecute `git push --force` (o `Remove-Item -Recurse -Force` fuera de build) con la herramienta PowerShell y también con Bash: ambos deben bloquearse.
 5. Lanza el validator y pídele `rm algo`: debe bloquearse. Si no, el `agent_type` que recibe el hook no coincide con `validator`/`forja:validator`.
-6. Al terminar el builder, `verify` debe correr en SubagentStop; al terminar un turno con código cambiado, en Stop (y aplicar pint/prettier).
+6. Al terminar el builder o el fixer, `verify` debe correr en SubagentStop; al terminar un turno con código cambiado, en Stop (y aplicar pint/prettier).
 7. Con `--with-playwright`: `/forja:verify` o la skill `qa` en una página local; el informe debe quedar en `docs/specs/<slug>/reviews/qa.md` con evidencia como archivos.
 8. En un worktree (`claude --worktree`), el estado y los hooks deben funcionar. **Límite declarado:** un worktree nuevo no trae `vendor/` ni `node_modules/`, así que `verify` no encuentra checks y pasa en vacío; la skill `build` no usa worktrees salvo que lo pidas, y la verificación real ocurre en el Stop del árbol principal tras integrar.
 9. `node .forja/forja.mjs metrics` tras una sesión debe mostrar tokens (si sale vacío, el formato del transcript difiere y hay que ajustar `hooks/metrics.mjs`).
 10. Inyección de estado: las skills usan `` !`node "${CLAUDE_PLUGIN_ROOT}/scripts/forja.mjs" status --line` `` con reglas `allowed-tools` para Bash y PowerShell. Se probó una vez con `claude -p` y una skill de prueba en Windows (la shell de inyección fue PowerShell; sin la regla `PowerShell(...)` abortaba); falta confirmarlo con las skills reales y en macOS/Linux.
-11. `agent_type` que reciben los hooks de subagentes (`validator`, `forja:validator`...) y que `effort` del frontmatter se aplique (con `haiku` solo vale en la API de Anthropic; en Bedrock/Vertex/Foundry el alias resuelve a Haiku 4.5, que no admite `effort`).
+11. **Orquestador:** al abrir la sesión, `/agents` o la barra de estado deben mostrar `forja:orchestrator` como agente activo; pídele un cambio trivial y debe lanzar `forja:fixer` en vez de editar. Si intenta editar, no debe tener la herramienta; el bloqueo del hook depende de que `agent_type` llegue en el hilo principal (la doc lo confirma para `--agent`; para el ajuste `agent` no está comprobado).
+12. `agent_type` que reciben los hooks de subagentes (`validator`, `forja:validator`...) y que `effort` del frontmatter se aplique (con `haiku` solo vale en la API de Anthropic; en Bedrock/Vertex/Foundry el alias resuelve a Haiku 4.5, que no admite `effort`).
 
 ## Experimento A/B (medir el ahorro real)
 
@@ -175,4 +195,4 @@ claude plugin validate .            # manifiestos
 claude --plugin-dir . plugin details forja   # coste en tokens (si ya está instalado: claude plugin details forja)
 ```
 
-Estructura: `skills/` (18: flujo y dominio), `agents/` (6), `hooks/` (scripts Node sin dependencias), `scripts/` (CLI e instalador de archivos), `templates/` (toda plantilla nueva se copia a `.forja/templates/`), `tests/`.
+Estructura: `skills/` (18: flujo y dominio), `agents/` (8), `hooks/` (scripts Node sin dependencias), `scripts/` (CLI e instalador de archivos), `settings.json` (agente por defecto del plugin), `templates/` (toda plantilla nueva se copia a `.forja/templates/`), `tests/`.

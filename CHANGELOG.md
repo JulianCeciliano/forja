@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+- **Agente `orchestrator`, hilo principal por defecto.** El `settings.json` del plugin fija `"agent": "orchestrator"`: piensa, clasifica, habla con el usuario y delega; no tiene `Edit`, `Write` ni `NotebookEdit` y hereda el modelo de la sesión. Los demás agentes pasan a ser sus subagentes.
+- **Agente `fixer` (haiku, esfuerzo bajo):** cambios triviales L0 (≤3 archivos) y documentos que el orquestador dicta (`spec.md`, plan de L1, `brainstorm.md`, `docs/system/`).
+- `gate`: clave nueva `noEditAgents` (por defecto `orchestrator`); bloquea cualquier edición de esos agentes y les indica a quién delegar. Vacíala para volver a un hilo principal que edita.
+- `verify` corre también en el `SubagentStop` de `fixer` (`verifyAgents`: `builder`, `fixer`; matcher de `hooks.json` actualizado). **Instalaciones previas** conservan su `verifyAgents: ["builder"]`: añade `"fixer"` a mano en `.forja/config.json` (el Stop del hilo principal verifica de todos modos al terminar el turno).
+- `build`: L1 deja de ejecutarse en línea; cada rebanada va a un `builder` en L1 y en L2. El `plan.md` lo escribe `designer` (L2) o `fixer` al dictado (L1).
+- `debug`, `idea`, `brainstorm`, `init`, `triage`, `ship`, `retro`: donde antes el hilo principal escribía, ahora delega. `builder` acepta también un bug ya diagnosticado; `designer` escribe el plan de L2.
+- `templates/CLAUDE.md` y el mensaje de `SessionStart` describen el reparto.
+- Sin verificar en sesión viva: que `agent_type` llegue a los hooks del hilo principal con el ajuste `agent` (la doc lo confirma para `--agent`). Si no llega, la garantía es la lista de herramientas del agente.
+
 ## 0.3.0
 - **Instalador:** Superpowers pasa a opt-in (`--with-superpowers`); `--no-superpowers` queda obsoleto (aviso, sin efecto). Motivo: inyecta su skill en cada sesión y choca con una skill dueña por fase.
 - Opciones nuevas: `--full` (Boost, MCP, Playwright, LSP, frontend-design; sin superpowers/caveman/graphify), `--with-lsp` (php-lsp y typescript-lsp + intelephense y typescript-language-server), `--with-frontend-design`, `--with-playwright-mcp`, `--boost-update-hook`.

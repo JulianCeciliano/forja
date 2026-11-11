@@ -1,7 +1,7 @@
 {
   "name": "forja",
   "displayName": "Forja",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Flujo de desarrollo con AI para Claude Code (Laravel + React/Inertia): triage por tipo de tarea, spec y plan con aprobación humana, subagentes, QA en navegador, hooks deterministas y métricas de tokens.",
   "author": { "name": "JulianCeciliano" },
   "license": "MIT",

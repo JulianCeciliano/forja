@@ -47,7 +47,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "^(forja:)?builder$",
+        "matcher": "^(forja:)?(builder|fixer)$",
         "hooks": [
           { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/verify.mjs"], "timeout": 1800 }
         ]

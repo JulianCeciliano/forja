@@ -2,9 +2,11 @@
 # Forja
 Flujo con hooks que imponen aprobaciones y tests (Bash y PowerShell). Estado: `node .forja/forja.mjs status`. Nunca edites `.forja/state.json`; las aprobaciones (`/forja:approve spec|plan`) las escribe solo el usuario.
 
+El hilo principal es el agente `orchestrator`: piensa y delega, **nunca edita**. Editan los subagentes: `fixer` (trivial y docs dictados), `builder` (rebanadas y bugs), `designer` (diseño y plan L2).
+
 ## Qué skill usar (una dueña por fase; ante la duda, `/forja:triage`)
 - Sin código previo o adopción de un sistema existente: `/forja:init` · idea difusa: `/forja:brainstorm` · bug: `/forja:debug`
-- Cambio pequeño (≤3 archivos): editar directo, la primera edición asigna L0 sin triage. Rutas sensibles (migraciones, Policies, routes, auth, middleware, CI, Docker) exigen `/forja:triage`.
+- Cambio pequeño (≤3 archivos): delegar en `fixer`, su primera edición asigna L0 sin triage. Rutas sensibles (migraciones, Policies, routes, auth, middleware, CI, Docker) exigen `/forja:triage`.
 - Feature L1/L2: `/forja:triage` → idea/design/build/verify/ship. Tareas = rebanadas verticales de 15–30 min (3–6 por feature).
 
 ## Comandos del proyecto (ajústalos)

@@ -2,6 +2,7 @@
 //  - Sin nivel: editar código asigna L0 implícito (cuenta para l0MaxFiles), salvo rutas sensibles (piden /forja:triage).
 //  - L1/L2: sin las aprobaciones vigentes no se edita código.
 //  - Subagentes de solo lectura y designer: solo escriben bajo docs/ (usa agent_type del input).
+//  - Orquestador (noEditAgents): no edita ningún archivo.
 // Estado y config se leen del worktree principal; las rutas se calculan respecto al worktree donde está el archivo.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,6 +21,11 @@ if (!file) process.exit(0);
 const cfg = loadConfig(root);
 const abs = realish(path.resolve(work, String(file)));
 const rel = relFromRoots([work, root], abs);
+
+// --- el orquestador no edita nada: piensa y delega (agent_type del hilo principal; en un subagente manda el suyo) ---
+if (agentIn(input, cfg.noEditAgents)) {
+  block(`FORJA: el agente ${input.agent_type} no edita archivos (${rel ?? file}). Delega: forja:fixer para un cambio trivial o un documento dictado, forja:builder para una rebanada del plan, forja:designer para el diseño.`);
+}
 
 // --- subagentes limitados a docs/ ---
 if (agentIn(input, [...cfg.readOnlyAgents, ...cfg.docsOnlyAgents])) {

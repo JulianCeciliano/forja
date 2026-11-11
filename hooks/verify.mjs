@@ -1,4 +1,4 @@
-// Stop (y SubagentStop del builder): no se da la tarea por terminada si los checks fallan (exit 2 devuelve el control).
+// Stop (y SubagentStop de builder y fixer): no se da la tarea por terminada si los checks fallan (exit 2 devuelve el control).
 // Cubre el código sin commitear Y lo commiteado desde la última verificación que pasó (HEAD verificado en el estado).
 // Ahorro de tokens: se salta si no cambió nada desde el último pase, formatea al final (no en cada edición),
 // no repite un fallo sobre el mismo código y solo devuelve las líneas relevantes del log.

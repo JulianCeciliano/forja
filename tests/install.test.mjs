@@ -196,9 +196,9 @@ test('install-files: --boost-hook-only añade boost:update a composer.json una s
   assert.equal(json(dir, 'composer.json').scripts['post-update-cmd'].filter((c) => c === cmd).length, 1);
 });
 
-test('manifiestos: versión 0.3.0 y keywords', () => {
+test('manifiestos: versión 0.4.0 y keywords', () => {
   const p = json(ROOT, '.claude-plugin/plugin.json');
-  assert.equal(p.version, '0.3.0');
+  assert.equal(p.version, '0.4.0');
   for (const k of ['playwright', 'inertia', 'qa']) assert.ok(p.keywords.includes(k), k);
 });
 
@@ -262,5 +262,5 @@ test('install-files: config antigua conserva sus listas y recibe las claves nuev
   const c = json(dir, '.forja/config.json');
   assert.deepEqual(c.protectedPaths, ['app/'], 'no pisa listas del usuario');
   assert.equal(c.l0MaxFiles, 5);
-  for (const k of ['sensitivePaths', 'protectedExclude', 'formatMode', 'docsOnlyAgents', 'verifyAgents', 'verifyTimeoutSec', 'neverEdit', 'outputMaxChars']) assert.ok(k in c, `clave nueva ${k}`);
+  for (const k of ['sensitivePaths', 'protectedExclude', 'formatMode', 'docsOnlyAgents', 'verifyAgents', 'noEditAgents', 'verifyTimeoutSec', 'neverEdit', 'outputMaxChars']) assert.ok(k in c, `clave nueva ${k}`);
 });

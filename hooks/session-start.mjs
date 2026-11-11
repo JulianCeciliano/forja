@@ -26,7 +26,7 @@ if (fresh || !state.base_head) {
 if (dirty) saveState(root, state);
 
 if (!state.level) {
-  console.log('FORJA activo, sin nivel: editar código asigna L0 (≤3 archivos); rutas sensibles o algo mayor → /forja:triage.');
+  console.log('FORJA activo, sin nivel: cambio trivial → fixer (L0, ≤3 archivos); rutas sensibles o algo mayor → /forja:triage.');
 } else {
   const ap = state.approvals || {};
   const fmt = (k) => (ap[k] ? 'aprobada' : 'pendiente');

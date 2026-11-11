@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Forja 0.3.0 — instalador de un solo comando (idempotente). Sirve en macOS, Linux y Git Bash (Windows).
+# Forja 0.4.0 — instalador de un solo comando (idempotente). Sirve en macOS, Linux y Git Bash (Windows).
 #
 #   Desde un clon:      ./install.sh [opciones]            (en la raíz de tu proyecto Laravel)
 #   Sin clonar:         curl -fsSL https://raw.githubusercontent.com/JulianCeciliano/forja/main/install.sh | FORJA_REPO=JulianCeciliano/forja bash -s -- [opciones]

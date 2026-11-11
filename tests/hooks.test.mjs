@@ -546,6 +546,8 @@ test('hooks.json: timeouts explícitos, matchers PowerShell/builder y sin MultiE
   const sg = hj.SubagentStop.find((g) => g.hooks.some((h) => h.args[0].endsWith('verify.mjs')));
   const re = new RegExp(sg.matcher);
   assert.ok(re.test('forja:builder') && re.test('builder'));
+  for (const a of D.verifyAgents) assert.ok(re.test(a) && re.test(`forja:${a}`), `el matcher debe cubrir ${a}`);
+  assert.ok(!re.test('forja:orchestrator') && !re.test('forja:fixer-x'));
   assert.ok(!re.test('forja:validator') && !re.test('forja:builder-x') && !re.test('other:builder'));
   assert.ok(!hj.PostToolUse || hj.PostToolUse.every((g) => g.matcher === 'Edit|Write'));
 });
@@ -614,6 +616,56 @@ test('gate (6): agent_type limita a revisores y designer a escribir bajo docs/',
   }
   assert.equal(as('forja:builder', `${dir}/app/Foo.php`).status, 0, 'el builder no está limitado');
   assert.equal(hook('gate', edit(`${dir}/README.md`), dir).status, 0, 'sin agent_type no cambia nada');
+});
+
+test('gate: el orquestador no edita nada; fixer y builder sí (L0 implícito)', () => {
+  const dir = project();
+  const as = (agent_type, file) => hook('gate', { ...edit(file), agent_type }, dir);
+  for (const agent of ['orchestrator', 'forja:orchestrator']) {
+    for (const f of ['app/Foo.php', 'docs/specs/x/spec.md', 'README.md']) {
+      const r = as(agent, `${dir}/${f}`);
+      assert.equal(r.status, 2, `${agent} no debe editar ${f}`);
+      assert.match(r.stderr, /no edita archivos/);
+      assert.match(r.stderr, /fixer/);
+    }
+    assert.equal(as(agent, '/tmp/fuera.txt').status, 2);
+  }
+  assert.ok(!fs.existsSync(path.join(dir, '.forja/state.json')), 'un bloqueo al orquestador no asigna nivel');
+  assert.equal(as('forja:fixer', `${dir}/docs/specs/x/spec.md`).status, 0, 'fixer escribe docs dictados');
+  assert.equal(as('forja:fixer', `${dir}/app/Foo.php`).status, 0, 'fixer hace el cambio L0');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, '.forja/state.json'), 'utf8')).level, 'L0');
+  assert.equal(as('forja:fixer', `${dir}/database/migrations/2025_x.php`).status, 2, 'fixer no salta las rutas sensibles');
+  // config: se puede vaciar la lista para volver al hilo principal que edita
+  const d2 = project();
+  write(d2, '.forja/config.json', JSON.stringify({ noEditAgents: [] }));
+  assert.equal(hook('gate', { ...edit(`${d2}/app/Foo.php`), agent_type: 'forja:orchestrator' }, d2).status, 0);
+});
+
+test('verify: SubagentStop también verifica al fixer', () => {
+  const dir = project({ git: true });
+  write(dir, '.forja/config.json', JSON.stringify({ checks: [FAIL_CHECK] }));
+  write(dir, 'app/Foo.php', '<?php');
+  const r = verifyIn(dir, { FAILCODE: '1' }, { hook_event_name: 'SubagentStop', agent_type: 'forja:fixer', stop_hook_active: false });
+  assert.equal(r.status, 2);
+});
+
+test('orquestador: es el agente por defecto del plugin, sin herramientas de edición, y existe cada agente que nombra', () => {
+  const s = JSON.parse(fs.readFileSync(path.join(ROOT, 'settings.json'), 'utf8'));
+  assert.deepEqual(Object.keys(s), ['agent'], 'un plugin solo puede fijar agent/subagentStatusLine');
+  const file = path.join(ROOT, 'agents', `${s.agent}.md`);
+  assert.ok(fs.existsSync(file), `falta agents/${s.agent}.md`);
+  const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  const fm = text.match(/^---\n([\s\S]*?)\n---\n/)[1];
+  const denied = fm.match(/^disallowedTools:\s*(.*)$/m)[1].split(',').map((t) => t.trim());
+  for (const t of ['Edit', 'Write', 'NotebookEdit']) assert.ok(denied.includes(t), `el orquestador no debe tener ${t}`);
+  assert.ok(!/^tools:/m.test(fm) || /Agent/.test(fm.match(/^tools:\s*(.*)$/m)[1]), 'debe poder lanzar subagentes');
+  assert.ok(!/^model:/m.test(fm), 'hereda el modelo de la sesión');
+  const agents = fs.readdirSync(path.join(ROOT, 'agents')).map((a) => a.replace(/\.md$/, ''));
+  const named = [...text.matchAll(/`forja:([a-z-]+)`/g)].map((m) => m[1]);
+  assert.ok(named.length >= 7);
+  for (const n of named) assert.ok(agents.includes(n), `el orquestador nombra forja:${n}, que no existe`);
+  for (const a of agents.filter((x) => x !== s.agent)) assert.ok(named.includes(a), `el orquestador no sabe delegar en ${a}`);
+  assert.match(fs.readFileSync(path.join(ROOT, 'agents/fixer.md'), 'utf8'), /^model: haiku$/m);
 });
 
 test('bash-guard (6): qa puede correr pruebas de navegador pero no servidores ni builds', () => {
