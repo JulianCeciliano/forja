@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Read(./.env.staging)",
+      "Read(./.env.*.local)",
+      "Read(./secrets/**)",
+      "Read(./auth.json)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.composer/auth.json)",
+      "Read(~/.config/composer/auth.json)",
+      "Read(./storage/logs/**)",
+      "Read(./public/build/**)",
+      "Read(./node_modules/.cache/**)",
+      "Edit(./.env)",
+      "Edit(./.env.local)",
+      "Edit(./.env.production)",
+      "Edit(./.env.staging)",
+      "Edit(./.env.*.local)",
+      "Edit(./auth.json)",
+      "Edit(./.forja/state.json)"
+    ],
+    "allow": [
+      "Bash(vendor/bin/pint --test *)",
+      "Bash(php artisan test *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/vitest run)",
+      "Bash(node .forja/forja.mjs status *)",
+      "Bash(node .forja/forja.mjs metrics *)",
+      "PowerShell(vendor/bin/pint --test *)",
+      "PowerShell(php artisan test *)",
+      "PowerShell(node_modules/.bin/tsc --noEmit)",
+      "PowerShell(node_modules/.bin/vitest run)",
+      "PowerShell(node .forja/forja.mjs status *)",
+      "PowerShell(node .forja/forja.mjs metrics *)"
+    ]
+  },
+  "env": {
+    "MAX_MCP_OUTPUT_TOKENS": "15000"
+  }
+}

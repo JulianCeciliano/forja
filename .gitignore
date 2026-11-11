@@ -1,0 +1,21 @@
+# Estado local de Forja
+.forja/state.json
+.forja/state.json.tmp
+.forja/metrics.jsonl
+.forja/tmp/
+
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+
+# Local
+node_modules/
+CLAUDE.local.md
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+*.log

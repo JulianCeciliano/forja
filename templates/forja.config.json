@@ -1,0 +1,74 @@
+{
+  "enforceTriage": true,
+  "protectedPaths": [
+    "app/",
+    "routes/",
+    "database/",
+    "resources/",
+    "config/",
+    "src/",
+    "lib/",
+    "tests/",
+    "bootstrap/",
+    "public/",
+    ".github/",
+    "docker/",
+    "composer.json",
+    "package.json",
+    "artisan",
+    "vite.config.*",
+    "tsconfig*.json",
+    "phpunit.xml*",
+    "pint.json",
+    "eslint.config.*",
+    "tailwind.config.*",
+    "postcss.config.*",
+    "components.json",
+    "Dockerfile*",
+    "docker-compose*",
+    "compose*.y*ml"
+  ],
+  "protectedExclude": [
+    "public/build/",
+    "public/hot",
+    "public/storage/"
+  ],
+  "neverEdit": [
+    ".env"
+  ],
+  "sensitivePaths": [
+    "database/migrations/",
+    "app/Policies/",
+    "routes/",
+    "config/auth.php",
+    "config/sanctum.php",
+    "app/Http/Middleware/",
+    "bootstrap/app.php",
+    ".github/workflows/",
+    "docker/",
+    "Dockerfile*",
+    "docker-compose*",
+    "compose*.y*ml"
+  ],
+  "l0MaxFiles": 3,
+  "checkTimeoutSec": 300,
+  "verifyTimeoutSec": 1500,
+  "maxFailLoops": 3,
+  "outputMaxLines": 40,
+  "outputMaxChars": 3500,
+  "checks": null,
+  "formatMode": "stop",
+  "readOnlyAgents": [
+    "validator",
+    "security",
+    "explorer",
+    "qa"
+  ],
+  "docsOnlyAgents": [
+    "designer"
+  ],
+  "verifyAgents": [
+    "builder"
+  ],
+  "extraReadOnlyCommands": []
+}

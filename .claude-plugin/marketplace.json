@@ -1,0 +1,12 @@
+{
+  "name": "forja",
+  "description": "Marketplace de Forja: flujo de desarrollo con AI para Claude Code",
+  "owner": { "name": "JulianCeciliano" },
+  "plugins": [
+    {
+      "name": "forja",
+      "source": "./",
+      "description": "Triage por tipo de tarea, aprobaciones humanas, subagentes, QA en navegador, hooks y métricas de tokens"
+    }
+  ]
+}
