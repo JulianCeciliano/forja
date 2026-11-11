@@ -6,6 +6,14 @@ Flujo de desarrollo con AI para **Claude Code**, pensado para Laravel + React (I
 
 ## Instalación
 
+Solo el plugin (skills, agentes y hooks), en un paso, desde Claude Code (2.1.275 o posterior):
+
+```
+/plugin install forja --marketplace JulianCeciliano/forja
+```
+
+Para la instalación completa (capa de archivos, Boost, MCP, etc.) usa el instalador:
+
 ```bash
 # Desde un clon, en la raíz de tu proyecto Laravel (macOS, Linux o Git Bash en Windows)
 /ruta/a/forja/install.sh --full
@@ -19,6 +27,8 @@ curl -fsSL https://raw.githubusercontent.com/JulianCeciliano/forja/main/install.
 # Ver qué haría, sin ejecutar nada
 ./install.sh --full --dry-run
 ```
+
+**Tras instalar:** reinicia Claude Code (o ejecuta `/reload-plugins`) y acepta el aviso de confianza de la carpeta; sin eso el plugin no carga. Las skills salen como `/forja:triage` y los agentes como `forja:builder`, `forja:explorer`, etc. (pestaña de plugins de `/agents`), no como agentes sueltos del proyecto. El scope `project` solo vale dentro del proyecto donde se instaló.
 
 Es idempotente: repítelo para actualizar. Qué instala siempre: la capa de archivos (`.forja/`, bloque en `CLAUDE.md`, `.claude/settings.json`), el plugin `forja` y Laravel Boost (salvo `--no-boost`).
 
